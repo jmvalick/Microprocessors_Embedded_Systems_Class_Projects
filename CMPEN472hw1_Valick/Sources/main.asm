@@ -2,8 +2,6 @@
 ;
 ; Title:          Homework 1: Load memory loop
 ;
-; Objective:      
-;
 ; Date:           August 26, 2022
 ;
 ; Programmer:     Jamin Valick
@@ -19,8 +17,8 @@
 ; Output:         Data filled in memory locations,
 ;                 from $3000 to $30CA
 ;
-; Observtaion:   Memory spaces $3000 to $30CA
-;                are filled with '*' charactars
+; Observtaion:    Memory spaces $3000 to $30CA
+;                 are filled with '*' charactars
 ;
 ;****************************************************************************** 
 ; Parameter Declaration
