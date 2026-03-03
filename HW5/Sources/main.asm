@@ -1,42 +1,51 @@
-***********************************************************************
-*
-* Title:          Homework 5
-*
-* Objective:      CMPEN 472 Homework 5, o learn how to use serial 
-*                 port for cummunications, how to write subroutines, 
-*                 how to construct LOOPs, and how to do user interaction.
-**
-* Date:	          October 2, 2022
-*
-* Programmer:     Jamin Valick
-*
-* Program:        Simple SCI Serial Port I/O 
-*                 Typewriter program and 4 LED, at PORTB
-*                 
-* Algorithm:      Simple Serial I/O use, typewriter
-*
-* Register use:	  A: LED Light on/off state and switch 1 on/off state
-*                 X,Y: Delay loop counters
-*
-* Memory use:     RAM Locations from $3000 for data, 
-*                 RAM Locations from $3100 for program
-*
-* Output:         
-*                 LED 1 at PORTB bit 4
-*                 LED 2 at PORTB bit 5
-*                 LED 3 at PORTB bit 6
-*                 LED 4 at PORTB bit 7
-*
-* Observation:    control LEDs by following the printed intructions
-*
-***********************************************************************
-* Parameter Declearation Section
-*
-* Export Symbols
+;***********************************************************************
+;
+; Title:          Homework 5: Interactive Serial LED Controller with PWM Brightness
+;
+; Objective:      To learn how to use serial port for cummunications, 
+;                 how to write subroutines, how to construct LOOPs, 
+;                 and how to do user interaction.
+;
+; Date:	          October 2, 2022
+;
+; Programmer:     Jamin Valick
+;
+;
+; Register use:	  A: LED Light on/off state and switch 1 on/off state
+;                 X,Y: Delay loop counters
+;
+; Memory use:     RAM Locations from $3000 for data, 
+;                 RAM Locations from $3100 for program
+;
+; Input:          Serial port input commands
+;                   L1: Turn on LED1
+;                   F1: Turn off LED1
+;                   L2: Turn on LED2
+;                   F2: Turn off LED2
+;                   L3: Turn on LED3
+;                   F3: Turn off LED3
+;                   L4: LED 4 goes from 0% light level to 100% light level in 5 seconds
+;                   F4: LED 4 goes from 100% light level to 0% light level in 5 seconds
+;                   QUIT: Quit menu program, run 'Type writer' program.
+;
+; Output:         LED 1 at PORTB bit 4
+;                 LED 2 at PORTB bit 5
+;                 LED 3 at PORTB bit 6
+;                 LED 4 at PORTB bit 7
+;
+; Observation:    Control LEDs by following the printed intructions
+;                 and typing commands on the serial port.
+;                 Invalid command handling.
+;
+;***********************************************************************
+;Parameter Declearation Section
+;
+;Export Symbols
             XDEF        pstart       ; export 'pstart' symbol
             ABSENTRY    pstart       ; for assembly entry point
   
-* Symbols and Macros
+;
+;Symbols and Macros
 PORTB       EQU         $0001        ; i/o port B addresses
 DDRB        EQU         $0003
 
@@ -58,10 +67,10 @@ Q           EQU         $51          ; ASCII 'Q
 U           EQU         $55          ; ASCII 'U
 I           EQU         $49          ; ASCII 'I
 T           EQU         $54          ; ASCII 'T'
-
-***********************************************************************
-* Data Section: address used [ $3000 to $30FF ] RAM memory
-*
+;
+;***********************************************************************
+;Data Section: address used [ $3000 to $30FF ] RAM memory
+;
             ORG         $3000        ; Reserved RAM memory starting address 
 Counter1    DC.W        $000F        ; X register count number for time delay
                                      ;   inner loop for msec
@@ -76,12 +85,11 @@ buffer      DC.W        $00000000    ;buffer to hold instruction charaters
 ; your messages, you can put more messages 'msg3' and 'msg4' at the end of 
 ; the program - before the last "END" line.
                                      ; Remaining data memory space for stack,
-                                     ;   up to program memory start
-
-*
-***********************************************************************
-* Program Section: address used [ $3100 to $3FFF ] RAM memory
-*
+                                     ; up to program memory start
+;
+;***********************************************************************
+;Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
             ORG        $3100         ; Program start address, in RAM
 pstart      LDS        #$3100        ; initialize the stack pointer
 
@@ -175,10 +183,11 @@ errorJump   bra   error
 bufferEnd   clr   buffCount          ;reset buffer counter
             ldy   #buffer            ;reset address of instruction buffer
             bra   mainJump           
-
-;subroutine section below
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;
 ;***********LED instructions****************
-
 error     LDX         #msg13           ; print the error message
           JSR         printmsg
           JSR         return
@@ -188,14 +197,14 @@ F1        PSHA                         ;save A register
           LDAA        #%11101111       ;turn off LED1 at portB bit 4
           ANDA        PORTB
           STAA        PORTB
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           BRA         bufferEnd
           
 F2        PSHA                         ;save A register
           LDAA        #%11011111       ;turn off LED2 at portB bit 5
           ANDA        PORTB
           STAA        PORTB
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           BRA         bufferEnd
           
 
@@ -203,7 +212,7 @@ F3        PSHA                         ;save A register
           LDAA        #%10111111       ;turn off LED3 at portB bit 6
           ANDA        PORTB
           STAA        PORTB
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           BRA         bufferEnd
    
                   
@@ -241,21 +250,21 @@ L1        PSHA                         ;save A register
           LDAA        #%00010000       ;turn on LED1 at portB bit 4
           ORAA        PORTB
           STAA        PORTB
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           BRA         bufferEnd
 
 L2        PSHA                         ;save A register
           LDAA        #%00100000       ;turn on LED2 at portB bit 5
           ORAA        PORTB
           STAA        PORTB
-          PULA                            ;restor A register
+          PULA                            ;restore A register
           BRA         bufferEnd          
           
 L3        PSHA                         ;save A register
           LDAA        #%01000000       ;turn on LED3 at portB bit 6
           ORAA        PORTB
           STAA        PORTB
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           BRA         bufferEnd  
                  
 L4        PSHA                         ;save A register
@@ -270,15 +279,15 @@ loop3     JSR         LED4on           ;jump to LED on instruction
           SBA                          ;get the fraction time off
 loop4     JSR         LED4off          ;jump to LED off instruction
           DECA                         ;decrease counter by one
-          BNE         loop4            ;if not at end jump to loop2
+          BNE         loop4            ;if not at end jump to loop4
           ADDB        #1
           CMPB        #85
           BNE         OUTLOOP2         ;stop loop when 100% on
           LDAA        #%10000000       ;turn on LED4 at portB bit 7
           ORAA        PORTB
           STAA        PORTB
-          PULA                         ;restor A register
-          PULB                         ;restor B register
+          PULA                         ;restore A register
+          PULB                         ;restore B register
           BRA         bufEndJ
 ;***********LED instructions end***************
 
@@ -296,7 +305,7 @@ typeWriter  jsr   getchar            ; type writer - check the key board
             ldaa  #LF                ; cursor to next line
             jsr   putchar
             bra   typeWriter  
-;***********typer writer loop ends*************   
+;***********typer writer loop end**************   
 
 ;***********LED4 controls**********************
 LED4off 
@@ -305,7 +314,7 @@ LED4off
           ANDA        PORTB
           STAA        PORTB
           JSR         delay10us        ;wait 10 us
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           RTS
  
 LED4on    PSHA                         ;save A register
@@ -313,7 +322,7 @@ LED4on    PSHA                         ;save A register
           ORAA        PORTB
           STAA        PORTB
           JSR         delay10us        ;wait 10 us
-          PULA                         ;restor A register
+          PULA                         ;restore A register
           RTS
                      
 delay10us
@@ -328,6 +337,7 @@ dlyusLoop NOP                          ;total time delay = X * NOP
           RTS                          ;return
 ;***********LED4 controls end*****************      
 
+;***************printMenu*********************
 printMenu   ldx   #msg3              ; print the third message
             jsr   printmsg
             jsr   return
@@ -371,14 +381,15 @@ return      ldaa  #CR                ; move the cursor to beginning of the line
             ldaa  #LF                ; move the cursor to next line, Line Feed
             jsr   putchar
             rts          
+;*************printMenu end********************
 
 ;***********printmsg***************************
-;* Program: Output character string to SCI port, print message
-;* Input:   Register X points to ASCII characters in memory
-;* Output:  message printed on the terminal connected to SCI port
-;* 
-;* Registers modified: CCR
-;* Algorithm:
+; Program: Output character string to SCI port, print message
+; Input:   Register X points to ASCII characters in memory
+; Output:  message printed on the terminal connected to SCI port
+; 
+; Registers modified: CCR
+; Algorithm:
 ;     Pick up 1 byte from memory where X register is pointing
 ;     Send it out to SCI port
 ;     Update X register to point to the next byte
@@ -400,15 +411,14 @@ printmsgloop   ldaa    1,X+           ;pick up an ASCII character from string
 printmsgdone   pulx 
                pula
                rts
-;***********end of printmsg********************
-
+;**************printmsg end********************
 
 ;***************putchar************************
-;* Program: Send one character to SCI port, terminal
-;* Input:   Accumulator A contains an ASCII character, 8bit
-;* Output:  Send one character to SCI port, terminal
-;* Registers modified: CCR
-;* Algorithm:
+; Program: Send one character to SCI port, terminal
+; Input:   Accumulator A contains an ASCII character, 8bit
+; Output:  Send one character to SCI port, terminal
+; Registers modified: CCR
+; Algorithm:
 ;    Wait for transmit buffer become empty
 ;      Transmit buffer empty is indicated by TDRE bit
 ;      TDRE = 1 : empty - Transmit Data Register Empty, ready to transmit
@@ -417,18 +427,17 @@ printmsgdone   pulx
 putchar        brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
                staa  SCIDRL                      ; send a character
                rts
-;***************end of putchar*****************
-
+;*****************putchar end******************
 
 ;****************getchar***********************
-;* Program: Input one character from SCI port (terminal/keyboard)
-;*             if a character is received, other wise return NULL
-;* Input:   none    
-;* Output:  Accumulator A containing the received ASCII character
-;*          if a character is received.
-;*          Otherwise Accumulator A will contain a NULL character, $00.
-;* Registers modified: CCR
-;* Algorithm:
+; Program: Input one character from SCI port (terminal/keyboard)
+;             if a character is received, other wise return NULL
+; Input:   none    
+; Output:  Accumulator A containing the received ASCII character
+;          if a character is received.
+;          Otherwise Accumulator A will contain a NULL character, $00.
+; Registers modified: CCR
+; Algorithm:
 ;    Check for receive buffer become full
 ;      Receive buffer full is indicated by RDRF bit
 ;      RDRF = 1 : full - Receive Data Register Full, 1 byte received
@@ -439,16 +448,13 @@ getchar        brclr SCISR1,#%00100000,getchar7
                rts
 getchar7       clra
                rts
-;****************end of getchar**************** 
-
+;******************getchar end***************** 
 
 ;OPTIONAL
 ;more variable/data section below
 ; this is after the program code section
 ; of the RAM.  RAM ends at $3FFF
 ; in MC9S12C128 chip
-
-
 msg3           DC.B        'L1: Turn on LED1', $00
 msg4           DC.B        'F1: Turn off LED1', $00
 msg5           DC.B        'L2: Turn on LED2', $00
@@ -460,9 +466,6 @@ msg10          DC.B        'F4: LED 4 goes from 100% light level to 0% light lev
 msg11          DC.B        'QUIT: Quit menu program, run Type Writer program', $00
 msg12          DC.B        'Enter your command below:', $00
 msg13          DC.B        'Error: Invalid command', $00
-
-
-
 
                END               ; this is end of assembly source file
                                  ; lines below are ignored - not assembled/compiled

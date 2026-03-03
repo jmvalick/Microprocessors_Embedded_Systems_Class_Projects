@@ -1,33 +1,33 @@
-***********************************************************************
-*
-* Title:          Homework 7
-*
-* Objective:      To learn how to use arithmetic instructions, 
-*                 simple command line parsing, and write basic I/O system subroutines. 
-*
-* Date:	          October 21, 2022
-*
-* Programmer:     Jamin Valick
-*
-* Program:        Simple SCI Serial Port I/O 
-*                 elementary calculator
-*
-* Memory use:     RAM Locations from $3000 for data, 
-*                 RAM Locations from $3100 for program
-*
-* Output:         hyper terminal
-*                 
-*
-* Observation:    show calculation based on input
-*
-***********************************************************************
-* Parameter Declearation Section
-*
-* Export Symbols
+;***********************************************************************
+;
+; Title:          Homework 7: Simple Interactive Positive Decimal Calculator
+;
+; Objective:      To learn how to use arithmetic instructions, 
+;                 simple command line parsing, and write basic I/O system subroutines. 
+;
+; Date:	          October 21, 2022
+;
+; Programmer:     Jamin Valick
+;
+; Memory use:     RAM Locations from $3000 for data, 
+;                 RAM Locations from $3100 for program
+;
+; Input:          Serial port input commands.
+;                 Format: 
+;                   <positive decimal three digit number><operand><positive decimal three digit number>
+;
+; Output:         Hyper terminal
+;                 
+; Observation:    Show calculation based on input. Format and overflow handling.
+;
+;***********************************************************************
+; Parameter Declearation Section
+;
+; Export Symbols
             XDEF        pstart       ; export 'pstart' symbol
             ABSENTRY    pstart       ; for assembly entry point
   
-* Symbols and Macros
+; Symbols and Macros
 PORTB       EQU         $0001        ; i/o port B addresses
 DDRB        EQU         $0003
 
@@ -46,10 +46,10 @@ Q           EQU         $51          ; ASCII 'Q
 U           EQU         $55          ; ASCII 'U
 I           EQU         $49          ; ASCII 'I
 T           EQU         $54          ; ASCII 'T'
-
-***********************************************************************
-* Data Section: address used [ $3000 to $30FF ] RAM memory
-*
+;
+;***********************************************************************
+; Data Section: address used [ $3000 to $30FF ] RAM memory
+;
             ORG         $3000                ;Reserved RAM memory starting address 
 buffCount   DC.B        $00,$00              ;counter for number of characters in buffer
 buffer      DS.B        10                   ;buffer for message from terminal
@@ -70,11 +70,10 @@ addressBuf  DC.B        3                    ;save addresses
 ; the program - before the last "END" line.
                                      ; Remaining data memory space for stack,
                                      ;   up to program memory start
-
-*
-***********************************************************************
-* Program Section: address used [ $3100 to $3FFF ] RAM memory
-*
+;
+;***********************************************************************
+; Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
             ORG        $3100         ; Program start address, in RAM
 pstart      LDS        #$3100        ; initialize the stack pointer
 
@@ -252,8 +251,11 @@ clearEnd    ldy   #buffer            ;reset address of instruction buffer
 subtractJ   bra   subtract
 divideJ     bra   divide
 multiplyJ   bra   multiply
-;subroutine section below
-;***********error message end******************
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;
+;*************math operations*******************
 add         ldd   num2
             addd  num1
             pshd
@@ -288,10 +290,7 @@ divide      ldd   num1
             idiv
             tfr   X,D
             jmp   instrEnd
-            
-;***********error message end******************
-
-
+;**********math operations end*****************
 
 ;***********error message**********************
 format      ldaa  #$0A
@@ -307,7 +306,6 @@ overFlow    ldaa  #$0A
             jsr   printmsg
             jsr   return
             jmp   endPrint
-
 ;***********error message end******************
 
 endNum2J    jmp   endNum2
@@ -374,12 +372,9 @@ checkDec    ldaa  Y                  ;load number
             suba  #$39               ;subtract ascii '9'
             bgt   formatJ0           ;print error if greater than ascii '9'
             rts     
-            
 ;***********check numbers end******************
 
-
 ;***********ascci translations*****************
-
 getAscii    psha
             suba  #$9                ;subtract 9
             bgt   letter1            ;jump to letters if greater than 9
@@ -392,12 +387,9 @@ letter1     pula
 
 getNum      suba  #$30               ;subtract $30 to get digit character
             rts
-
 ;***********ascci translations end*************        
-
-
-;***********typer writer loop ends*************   
     
+;***************printMenu*********************
 printMenu   ldx   #msg1              ; print the third message
             jsr   printmsg
             jsr   return
@@ -411,6 +403,7 @@ return      ldaa  #CR                ; move the cursor to beginning of the line
             ldaa  #LF                ; move the cursor to next line, Line Feed
             jsr   putchar
             rts          
+;*************printMenu end********************
 
 ;***********printmsg***************************
 ;* Program: Output character string to SCI port, print message
@@ -440,8 +433,7 @@ printmsgloop   ldaa    1,X+           ;pick up an ASCII character from string
 printmsgdone   pulx 
                pula
                rts
-;***********end of printmsg********************
-
+;**************printmsg end********************
 
 ;***************putchar************************
 ;* Program: Send one character to SCI port, terminal
@@ -457,8 +449,7 @@ printmsgdone   pulx
 putchar        brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
                staa  SCIDRL                      ; send a character
                rts
-;***************end of putchar*****************
-
+;*****************putchar end******************
 
 ;****************getchar***********************
 ;* Program: Input one character from SCI port (terminal/keyboard)
@@ -479,21 +470,17 @@ getchar        brclr SCISR1,#%00100000,getchar7
                rts
 getchar7       clra
                rts
-;****************end of getchar**************** 
-
+;******************getchar end***************** 
 
 ;OPTIONAL
 ;more variable/data section below
 ; this is after the program code section
 ; of the RAM.  RAM ends at $3FFF
 ; in MC9S12C128 chip
-
-
 msg1        DC.B        'Welcome to the Elementary Calculator Program!', $00
 msg2        DC.B        'Please enter an addition, subtraction, multiplication, or division problem.', $00
 formatEr    DC.B        'Invalid input format', $00
 overFlowEr  DC.B        'Overflow error', $00
-
 
             END               ; this is end of assembly source file
                               ; lines below are ignored - not assembled/compiled

@@ -1,31 +1,38 @@
-***********************************************************************
-*
-* Title:          Homework 6
-*
-* Objective:      To show contents and wrtie to memory location on demand
-*
-* Date:	          October 11, 2022
-*
-* Programmer:     Jamin Valick
-*
-* Program:        Simple SCI Serial Port I/O 
-*                 store and read on demand
-*
-* Memory use:     RAM Locations from $3000 for data, 
-*                 RAM Locations from $3100 for program
-*
-* Output:         hyper terminal
-*                 
-* Observation:    shows content of given adress and writes content to given address
-*
-***********************************************************************
-* Parameter Declearation Section
-*
-* Export Symbols
+;***********************************************************************
+;
+; Title:          Homework 6: Interactive Serial Memory Read and Write
+;
+; Objective:      To learn how to use arithmetic instructions and write
+;                 basic system I/O subroutines. Learn user interface 
+;                 through a serial port. 
+;
+; Date:	          October 11, 2022
+;
+; Programmer:     Jamin Valick
+;
+; Memory use:     RAM Locations from $3000 for data, 
+;                 RAM Locations from $3100 for program
+;
+; Input:          Serial port input commands
+;                   S$<address>:       Show the contents of memory location
+;                   W$<address> data:  Write the data byte to memory location
+;                   QUIT:              Quit the main program, run 'Type writer' program.
+;
+; Output:         Hyper terminal
+;                 
+; Observation:    Shows content of given adress and writes content to given address.
+;                 Data will be shown in hexadecimal and decimal.
+;                 Data can be written with a given hexadecimal or decimal value.
+;                 Invalid command handling.
+;
+;***********************************************************************
+;Parameter Declearation Section
+;
+;Export Symbols
             XDEF        pstart       ; export 'pstart' symbol
             ABSENTRY    pstart       ; for assembly entry point
-  
-* Symbols and Macros
+
+;Symbols and Macros
 PORTB       EQU         $0001        ; i/o port B addresses
 DDRB        EQU         $0003
 
@@ -44,10 +51,10 @@ Q           EQU         $51          ; ASCII 'Q
 U           EQU         $55          ; ASCII 'U
 I           EQU         $49          ; ASCII 'I
 T           EQU         $54          ; ASCII 'T'
-
-***********************************************************************
-* Data Section: address used [ $3000 to $30FF ] RAM memory
-*
+;
+;***********************************************************************
+;Data Section: address used [ $3000 to $30FF ] RAM memory
+;
             ORG         $3000        ; Reserved RAM memory starting address 
 msg1        DC.B        'Hello', $00
 msg2        DC.B        'You may type below', $00
@@ -60,18 +67,17 @@ data        DS.B        3                    ;buffer to hold data
 decimal4    DS.B        6                    ;buffer to hold seperated decimal numbers for data
 decimal     DS.B        5                    ;buffer to hold decimal number
 
-; Each message ends with $00 (NULL ASCII character) for your program.
+;Each message ends with $00 (NULL ASCII character) for your program.
 ;
-; There are 256 bytes from $3000 to $3100.  If you need more bytes for
-; your messages, you can put more messages 'msg3' and 'msg4' at the end of 
-; the program - before the last "END" line.
+;There are 256 bytes from $3000 to $3100.  If you need more bytes for
+;your messages, you can put more messages 'msg3' and 'msg4' at the end of 
+;the program - before the last "END" line.
                                      ; Remaining data memory space for stack,
                                      ;   up to program memory start
-
-*
-***********************************************************************
-* Program Section: address used [ $3100 to $3FFF ] RAM memory
-*
+;
+;***********************************************************************
+;Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
             ORG        $3100         ; Program start address, in RAM
 pstart      LDS        #$3100        ; initialize the stack pointer
 
@@ -283,7 +289,6 @@ endAWriteJ3 bra   endAWriteJ
 endHwriteJ3 bra   endHwrite 
 
             
-            
 endDwrite   ldx   #data4             ;reload address of seperated data buffer
             ldaa  $00
             ldab  1,X+               ;combine characters into decimal data
@@ -334,7 +339,6 @@ mainJump5   bra   mainJump4
 endDwriteJ2 bra   endDwrite          
   
  
-
 Qs          ldaa  1,Y+
             cmpa  #U                 ;see if second character is 'U'
             bne   errorJump              ;if not print error message
@@ -357,14 +361,14 @@ clearLoop   clr   X
             bra   clearLoop
 clearEnd    ldy   #buffer            ;reset address of instruction buffer
             bra   mainJump5           
-
-;subroutine section below
-;***********error message**********************
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;;***********error message**********************
 error       LDX   #msg12           ; print the error message
             JSR   printmsg
             JSR   return
             BRA   instrEnd
-
 ;***********error message end******************
 
 errorJump1  bra   error
@@ -421,14 +425,12 @@ checkDdata  ldaa  Y
             inc   buffCount          ;increase buffer counter
             ldaa  1,Y+
             rts
-           
 ;***********check numbers end******************
 
 typeJump1   bra   typeJump2
 returnWD3   bra   returnWD4 
 
 ;***********ascci translations*****************
-
 getAscii    psha
             suba  #$9                ;subtract 9
             bgt   letter1            ;jump to letters if greater than 9
@@ -448,7 +450,6 @@ getChar     psha
 letter2     pula                
             suba  #$37               ;subtract $37 to get letter character
             rts
-
 ;***********ascci translations end*************
 
 typeJump2   bra   typeJump3
@@ -617,9 +618,7 @@ endPrintS   tba
             jsr   getAscii
             jsr   putchar            
             rts
-            
 ;***********confirmation messages end**********          
-
 
 ;***********typer writer loop******************
 typeWriter  jsr   getchar            ; type writer - check the key board
@@ -635,8 +634,9 @@ typeWriter  jsr   getchar            ; type writer - check the key board
             ldaa  #LF                ; cursor to next line
             jsr   putchar
             bra   typeWriter  
-;***********typer writer loop ends*************   
+;***********typer writer loop end**************   
     
+;***************printMenu*********************
 printMenu   ldx   #msg3              ; print the third message
             jsr   printmsg
             jsr   return
@@ -682,7 +682,8 @@ return      ldaa  #CR                ; move the cursor to beginning of the line
             jsr   putchar            ; Cariage Return/Enter key
             ldaa  #LF                ; move the cursor to next line, Line Feed
             jsr   putchar
-            rts          
+            rts 
+;*************printMenu end********************
 
 ;***********printmsg***************************
 ;* Program: Output character string to SCI port, print message
@@ -712,15 +713,14 @@ printmsgloop   ldaa    1,X+           ;pick up an ASCII character from string
 printmsgdone   pulx 
                pula
                rts
-;***********end of printmsg********************
-
+;**************printmsg end********************
 
 ;***************putchar************************
-;* Program: Send one character to SCI port, terminal
-;* Input:   Accumulator A contains an ASCII character, 8bit
-;* Output:  Send one character to SCI port, terminal
-;* Registers modified: CCR
-;* Algorithm:
+; Program: Send one character to SCI port, terminal
+; Input:   Accumulator A contains an ASCII character, 8bit
+; Output:  Send one character to SCI port, terminal
+; Registers modified: CCR
+; Algorithm:
 ;    Wait for transmit buffer become empty
 ;      Transmit buffer empty is indicated by TDRE bit
 ;      TDRE = 1 : empty - Transmit Data Register Empty, ready to transmit
@@ -729,18 +729,17 @@ printmsgdone   pulx
 putchar        brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
                staa  SCIDRL                      ; send a character
                rts
-;***************end of putchar*****************
-
+;*****************putchar end******************
 
 ;****************getchar***********************
-;* Program: Input one character from SCI port (terminal/keyboard)
-;*             if a character is received, other wise return NULL
-;* Input:   none    
-;* Output:  Accumulator A containing the received ASCII character
-;*          if a character is received.
-;*          Otherwise Accumulator A will contain a NULL character, $00.
-;* Registers modified: CCR
-;* Algorithm:
+; Program: Input one character from SCI port (terminal/keyboard)
+;             if a character is received, other wise return NULL
+; Input:   none    
+; Output:  Accumulator A containing the received ASCII character
+;          if a character is received.
+;          Otherwise Accumulator A will contain a NULL character, $00.
+; Registers modified: CCR
+; Algorithm:
 ;    Check for receive buffer become full
 ;      Receive buffer full is indicated by RDRF bit
 ;      RDRF = 1 : full - Receive Data Register Full, 1 byte received
@@ -751,7 +750,7 @@ getchar        brclr SCISR1,#%00100000,getchar7
                rts
 getchar7       clra
                rts
-;****************end of getchar**************** 
+;*****************getchar end****************** 
 
 
 ;OPTIONAL
@@ -759,8 +758,6 @@ getchar7       clra
 ; this is after the program code section
 ; of the RAM.  RAM ends at $3FFF
 ; in MC9S12C128 chip
-
-
 msg3        DC.B        'Welcome to the Simple Memory Access Program!', $00
 msg4        DC.B        'Enter one of the following commands and hit Enter', $00
 msg5        DC.B        'S:  Show the contents of memory location in word', $00

@@ -1,61 +1,61 @@
-***********************************************************************
-*
-* Title:          Homework 3: LED Light Blinking PWM
-*
-* Objective:      CMPEN 472 Homework
-*
-* Date:           September 12, 2022
-*
-* Programmer:     Jamin Valick
-*
-* Register use:   A: LED Light on/off state and switch 1 on/off state
-*                 X,Y: Delayloop counters
-*              
-* Memory use:     RAM Location from $3000 for data
-*                 RAM Locations from $3100 for program
-*           
-* Input:          Parameters hard-coded in the program - PORTB
-*                 Switch 1 at PORTB bit 0
-*                 Switch 2 at PORTB bit 1
-*                 Switch 3 at PORTB bit 2
-*                 Switch 4 at PORTB bit 3
-*       
-* Output:         LED 1 at PORTB bit 4
-*                 LED 2 at PORTB bit 5
-*                 LED 3 at PORTB bit 6
-*                 LED 4 at PORTB bit 7
-*        
-* Observation:        Pulse the LED lights
-*                 Initial state of LED lights: (0) LED 1 is OFF (0%), LED 2 is ON (100%), and LED 3 is OFF (0%)
-*                 SW1 NOT pressed: (1) LED 4 turn on for 0.12 second, then turn off for 0.88 second, and repeat
-*                 SW1 pressed: (2) LED 4 turn on for 0.48 second, then turn off for 0.52 second, and repeat
-*
-******************************************************************************************************
-*Parameter Decleration Section
-*
-*Export Symbols
+;******************************************************************************************************
+;
+; Title:          Homework 3: LED Light Blinking with PWM
+;
+; Objective:      Dimming the LED lights using PWM (Pulse Width Modulation) technique. 
+;
+; Date:           September 12, 2022
+;
+; Programmer:     Jamin Valick
+;
+; Register use:   A: LED Light on/off state and switch 1 on/off state
+;                 X,Y: Delayloop counters
+;              
+; Memory use:     RAM Location from $3000 for data
+;                 RAM Locations from $3100 for program
+;           
+; Input:          Parameters hard-coded in the program - PORTB
+;                 Switch 1 at PORTB bit 0
+;                 Switch 2 at PORTB bit 1
+;                 Switch 3 at PORTB bit 2
+;                 Switch 4 at PORTB bit 3
+;       
+; Output:         LED 1 at PORTB bit 4
+;                 LED 2 at PORTB bit 5
+;                 LED 3 at PORTB bit 6
+;                 LED 4 at PORTB bit 7
+;        
+; Observation:    Pulse the LED lights
+;                 Initial state of LED lights: (0) LED 1 is OFF (0%), LED 2 is ON (100%), and LED 3 is OFF (0%)
+;                 SW1 NOT pressed: (1) LED 4 turn on for 0.12 second, then turn off for 0.88 second, and repeat
+;                 SW1 pressed: (2) LED 4 turn on for 0.48 second, then turn off for 0.52 second, and repeat
+;
+;******************************************************************************************************
+;Parameter Decleration Section
+;
+;Export Symbols
           XDEF        pstart       ;export 'pstart' symbol
           ABSENTRY    pstart       ;for assemble entry point
-*
-*Symbols and Macros
+;
+;Symbols and Macros
 PORTA     EQU         $0000        ;i/o port A addressess
 DDRA      EQU         $0002
 PORTB     EQU         $0001        ;i/o port B addressess
 DDRB      EQU         $0003
-*
-******************************************************************************************************
-*Data Section: address used [ $3000 to $30FF ] RAM memory
-*
+;
+;******************************************************************************************************
+;Data Section: address used [ $3000 to $30FF ] RAM memory
+;
           ORG         $3000        ;Reserved RAM memory starting address
                                    ;
 Counter1  DC.W        $000F        ;X register count number for time delay
                                    ;loop for usec
                                    ;Remaining data memory space for stack
                                    ; up to prgram memory start 
-*
-******************************************************************************************************
-*Program Section: address used [ $3100 to $3FFF ] RAM memory
-*
+;
+;******************************************************************************************************
+;Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
           ORG         $3100        ;Program start address in RAM
 pstart    LDS         #$3100       ;initialize the stack pointer
 
@@ -101,10 +101,10 @@ loop4
           DECB                         ;decrease counter by one
           BNE         loop4            ;if not at end jump to loop4
           BRA         mainLoop
-*
-******************************************************************************************************
-*Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
-*
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;
 LED4off 
           PSHA                         ;save A register
           LDAA        #%01111111       ;turn off LED4 at portB bit 7
@@ -113,7 +113,7 @@ LED4off
           JSR         delay10us        ;wait 10 us
           PULA                         ;restor A register
           RTS
-* 
+
 LED4on    PSHA                         ;save A register
           LDAA        #%10000000       ;turn on LED4 at portB bit 7
           ORAA        PORTB
@@ -121,8 +121,7 @@ LED4on    PSHA                         ;save A register
           JSR         delay10us        ;wait 10 us
           PULA                         ;restor A register
           RTS
-*
-                     
+              
 delay10us
           PSHX                         ;save X
           LDX         Counter1         ;short delay
@@ -133,5 +132,5 @@ dlyusLoop NOP                          ;total time delay = X * NOP
           
           PULX                         ;retore X
           RTS                          ;return
-*
+
           end                          ;last line of file

@@ -1,6 +1,9 @@
-;***********************************************************************
+;******************************************************************************
 ;
-; Title:          Homework 1: Load memory loop
+; Title:          Homework 1: Load memory with loop
+;
+; Objective:      Learn how to assemble a simple source program and learn
+;                 how to simulate the program. 
 ;
 ; Date:           August 26, 2022
 ;
@@ -36,8 +39,8 @@ DDRB    EQU        $0003
 ; Data
 ;
         ORG        $3000   ;reserved memory starting address
-here    DS.B       $CA     ;define storage, 202 memory locations reserved
-count   DC.B       $CA     ;define constant, star count = 202
+here    DS.B       $CA     ;define storage byte, 202 memory locations reserved
+count   DC.B       $CA     ;define constant byte, star count = 202
 ;
 ;******************************************************************************
 ; Program 
@@ -46,13 +49,13 @@ count   DC.B       $CA     ;define constant, star count = 202
 pgstart ldaa       #'*'    ;load '*' into accumulator A
         ldab       count   ;load star counter into B
         ldx        #here   ;load address pointer into X
+      
 loop    staa       0,x     ;put a star
         inx                ;point to next location
         decb               ;dcrease counter
         bne        loop    ;if not done, repeat
+      
 done    bra        done    ;task finished
                            ;do nothing
-;
-; Add any subroutines here
-;
+
         END                ;last line of a file
