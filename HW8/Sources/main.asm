@@ -1,34 +1,34 @@
 ;*******************************************************
-;* CMPEN 472, HW8 Real Time Interrupt, MC9S12C128 Program
-;* CodeWarrior Simulator/Debug edition, not for CSM-12C128 board
-;*
-;* Programmer: Jamin Valick
-;*
-;* 1 second LED1 blink, timer using Real Time Interrupt.
-;* This program is a 1 second timer using 
-;* a Real Time Interrupt service subroutine (RTIISR).  This program
-;* displays the time on the 7 Segment Disply in Visualization Tool 
-;* every 1 second.  
-;* The 7 segment displys are connected to port B of
-;* MC9S12C32 chip in CodeWarrior Debugger/Simulator.
-;* Also on the Terminal component of the simulator,  
-;* user may enter any key, it will be displayed on the screen - effectively
-;* it is a typewriter.
-;*
-;* Please note the new feature of this program:
-;* RTI vector, initialization of CRGFLG, CRGINT, RTICTL, registers for the
-;* Real Time Interrupt.
-;* We assumed 24MHz bus clock and 4MHz external resonator clock frequency.  
-;* This program any user input (a typewriter). 
-;* 
-;*******************************************************
-;*******************************************************
-
-; export symbols - program starting point
+; CMPEN 472, HW8 Real Time Interrupt, MC9S12C128 Program
+; CodeWarrior Simulator/Debug edition, not for CSM-12C128 board
+;
+; Programmer: Jamin Valick
+;
+; 1 second LED1 blink, timer using Real Time Interrupt.
+; This program is a 1 second timer using 
+; a Real Time Interrupt service subroutine (RTIISR).  This program
+; displays the time on the 7 Segment Disply in Visualization Tool 
+; every 1 second.  
+; The 7 segment displys are connected to port B of
+; MC9S12C32 chip in CodeWarrior Debugger/Simulator.
+; Also on the Terminal component of the simulator,  
+; user may enter any key, it will be displayed on the screen - effectively
+; it is a typewriter.
+;
+; Please note the new feature of this program:
+; RTI vector, initialization of CRGFLG, CRGINT, RTICTL, registers for the
+; Real Time Interrupt.
+; We assumed 24MHz bus clock and 4MHz external resonator clock frequency.  
+; This program any user input (a typewriter). 
+; 
+;***********************************************************************
+; Parameter Declearation Section
+;
+; Export Symbols
             XDEF        Entry        ; export 'Entry' symbol
             ABSENTRY    Entry        ; for assembly entry point
 
-; include derivative specific macros
+; Symbols and Macros
 PORTA       EQU         $0000
 PORTB       EQU         $0001
 DDRA        EQU         $0002
@@ -46,12 +46,12 @@ RTICTL      EQU         $003B        ; Real Time Interrupt Control
 
 CR          equ         $0d          ; carriage return, ASCII 'Return' key
 LF          equ         $0a          ; line feed, ASCII 'next line' character
-
-;*******************************************************
-; variable/data section
+;
+;***********************************************************************
+; Data Section: address used [ $3000 to $30FF ] RAM memory
+;
             ORG    $3000             ; RAMStart defined as $3000
                                      ; in MC9S12C128 chip
-
 timeh       DS.B   1                 ; Hour
 timem       DS.B   1                 ; Minute
 times       DS.B   1                 ; Second
@@ -65,18 +65,16 @@ digMin      DS.B   3                 ;buffer for minute display output
 digSec1     DS.B   3                 ;buffer for first seond display output
 digSec2     DS.B   3                 ;buffer for second second display output
 setBool     DS.B   2                 ;bool to check if clock has been set
-
-
-
+;
 ;*******************************************************
-; interrupt vector section
-            ORG    $FFF0             ; RTI interrupt vector setup for the simulator
+; Interrupt vector section
+            ORG    $FFF0              ; RTI interrupt vector setup for the simulator
 ;            ORG    $3FF0             ; RTI interrupt vector setup for the CSM-12C128 board
             DC.W   rtiisr
-
-;*******************************************************
-; code section
-
+;
+;***********************************************************************
+; Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
             ORG    $3100
 Entry
             LDS    #Entry         ; initialize the stack pointer
@@ -158,15 +156,17 @@ clearLoop   clr   X
             bra   clearLoop
 clearEnd    ldy   #buffer            ;reset address of instruction buffer
             jsr   mainLoop  
-;subroutine section below
-
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;
 ;***********RTI interrupt service routine***************
 rtiisr      bset   CRGFLG,%10000000 ; clear RTI Interrupt Flag - for the next one
             ldx    ctr2p5m          ; every time the RTI occur, increase
             inx                     ;    the 16bit interrupt count
             stx    ctr2p5m
 rtidone     RTI
-;***********end of RTI interrupt service routine********
+;***********RTI interrupt service routine end***********
 
 ;*******************Set Time******************
 setTime     ldx    #setBool         ;set bool is now true
@@ -291,7 +291,7 @@ printMenu   ldx   #msg3              ; print the third message
             jsr   printmsg
             jsr   nextline
             rts
-;***********print menu ends********************
+;***********print menu end*********************
 
 ;***********error message**********************
 format      ldx   #formatEr          ; print the error message
@@ -303,7 +303,6 @@ timeFormat  ldx   #timeEr            ; print the error message
             jsr   printmsg
             jsr   nextline
             jmp   intrEnd
-
 ;***********error message end******************
 
 ;***********typer writer loop******************
@@ -324,7 +323,7 @@ writerLoop  jsr   getchar            ; type writer - check the key board
             ldaa  #LF                ; cursor to next line
             jsr   putchar
             bra   writerLoop  
-;***********typer writer loop ends*************   
+;***********typer writer loop end**************   
 
 ;***********printmsg***************************
 ;* Program: Output character string to SCI port, print message
@@ -353,7 +352,7 @@ printmsgloop    ldaa    1,X+           ;pick up an ASCII character from string
 printmsgdone    pulx 
                 pula
                 rts
-;***********end of printmsg********************
+;**************printmsg end********************
 
 ;***************putchar************************
 ;* Program: Send one character to SCI port, terminal
@@ -369,7 +368,7 @@ printmsgdone    pulx
 putchar     brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
             staa  SCIDRL                      ; send a character
             rts
-;***************end of putchar*****************
+;*****************putchar end******************
 
 ;****************getchar***********************
 ;* Program: Input one character from SCI port (terminal/keyboard)
@@ -385,13 +384,12 @@ putchar     brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
 ;      RDRF = 1 : full - Receive Data Register Full, 1 byte received
 ;      RDRF = 0 : not full, 0 byte received
 ;**********************************************
-
 getchar     brclr SCISR1,#%00100000,getchar7
             ldaa  SCIDRL
             rts
 getchar7    clra
             rts
-;****************end of getchar**************** 
+;******************getchar end***************** 
 
 ;****************nextline**********************
 nextline    psha
@@ -401,7 +399,7 @@ nextline    psha
             jsr   putchar
             pula
             rts
-;****************end of nextline***************
+;*****************nextline end*****************
 
 msg1        DC.B        'Hello', $00
 msg2        DC.B        'You may type below', $00
@@ -410,7 +408,6 @@ msg4        DC.B        'Please enter "s " and a time between  0:00 and 9:59 to 
 msg5        DC.B        'or "q" to quit the clock', $00
 formatEr    DC.B        'Invalid command. ("s" to set time and "q" to quit)', $00
 timeEr      DC.B        'Invalid time format. Correct example => 0:00 to 9:59', $00
-
 
             END               ; this is end of assembly source file
                               ; lines below are ignored - not assembled/compiled
