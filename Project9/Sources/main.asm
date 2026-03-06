@@ -1,26 +1,39 @@
-;*******************************************************
-; CMPEN 472, HW8 Real Time Interrupt, MC9S12C128 Program
-; CodeWarrior Simulator/Debug edition, not for CSM-12C128 board
+;***********************************************************************
 ;
-; Programmer: Jamin Valick
+; Title:          Project 9: Analog Signal Acquisition
 ;
-; 1 second LED1 blink, timer using Real Time Interrupt.
-; This program is a 1 second timer using 
-; a Real Time Interrupt service subroutine (RTIISR).  This program
-; displays the time on the 7 Segment Disply in Visualization Tool 
-; every 1 second.  
-; The 7 segment displys are connected to port B of
-; MC9S12C32 chip in CodeWarrior Debugger/Simulator.
-; Also on the Terminal component of the simulator,  
-; user may enter any key, it will be displayed on the screen - effectively
-; it is a typewriter.
+; Objective:      To learn Analog Signal Acquisition programming with timer module interrupt. 
 ;
-; Please note the new feature of this program:
-; RTI vector, initialization of CRGFLG, CRGINT, RTICTL, registers for the
-; Real Time Interrupt.
-; We assumed 24MHz bus clock and 4MHz external resonator clock frequency.  
-; This program any user input (a typewriter). 
-; 
+; Date:	          November 26, 2022
+;
+; Programmer:     Jamin Valick
+;
+; Program:        Extends Project 8 with a Analog to Digital Converter
+;
+; Memory use:     RAM Locations from $3000 for data, 
+;                 RAM Locations from $3100 for program
+;
+; Input:          Serial port input commands.
+;                 Clock command format:
+;                   "s" for 'set time' command and "q" for 'quit' command, only two commands 
+;                   s <number 0 to 9>:<number 0 to 59>
+;                 Wave generator commands:
+;                   gw: generate sawtooth wave
+;                   gt: generate triangle wave
+;                   gq: generate square wave
+;                   adc: analog signal acqusition
+;                 Analog signal input on Channel 7 of the built in ADC
+;
+; Output:         Hyper terminal
+;                 7-segment display. Minutes PORTA seconds PORTB.
+;                 
+; Observation:    Show 10 minute clock based on time set.
+;                 Sawtooth wave: printing 0 through 255, repeated for total 2048 points
+;                 Triangle wave: printing 0 through 255, then 255 down to 0, repeated for total 2048 points 
+;                 Square wave: printing 0 for 255 times, then print 255 for 255 times, then repeated for total 2048 points 
+;                 ADC: Converts incoming analog signals to digital and writes the terminal.
+;                 Command format error handling.
+;
 ;***********************************************************************
 ; Parameter Declearation Section
 ;
@@ -34,6 +47,16 @@ PORTB       EQU         $0001
 DDRA        EQU         $0002
 DDRB        EQU         $0003
 
+ATDCTL2     EQU         $0082        ; Analog-to-Digital Converter (ADC) registers
+ATDCTL3     EQU         $0083
+ATDCTL4     EQU         $0084
+ATDCTL5     EQU         $0085
+ATDSTAT0    EQU         $0086
+ATDDR0H     EQU         $0090
+ATDDR0L     EQU         $0091
+ATDDR7H     EQU         $009e
+ATDDR7L     EQU         $009f
+
 SCIBDH      EQU         $00C8        ; Serial port (SCI) Baud Register H
 SCIBDL      EQU         $00C9        ; Serial port (SCI) Baud Register L
 SCICR2      EQU         $00CB        ; Serial port (SCI) Control Register 2
@@ -44,20 +67,28 @@ CRGFLG      EQU         $0037        ; Clock and Reset Generator Flags
 CRGINT      EQU         $0038        ; Clock and Reset Generator Interrupts
 RTICTL      EQU         $003B        ; Real Time Interrupt Control
 
+TIOS        EQU         $0040         ; Timer Input Capture (IC) or Output Compare (OC) select
+TIE         EQU         $004C         ; Timer interrupt enable register
+TCNTH       EQU         $0044         ; Timer free runing main counter
+TSCR1       EQU         $0046         ; Timer system control 1
+TSCR2       EQU         $004D         ; Timer system control 2
+TFLG1       EQU         $004E         ; Timer interrupt flag 1
+TC5H        EQU         $005A         ; Timer channel 2 register
+
 CR          equ         $0d          ; carriage return, ASCII 'Return' key
 LF          equ         $0a          ; line feed, ASCII 'next line' character
+
+DATAmax     equ         2048         ; Data count maximum, 2048 constant
 ;
 ;***********************************************************************
 ; Data Section: address used [ $3000 to $30FF ] RAM memory
 ;
             ORG    $3000             ; RAMStart defined as $3000
                                      ; in MC9S12C128 chip
+
 timeh       DS.B   1                 ; Hour
 timem       DS.B   1                 ; Minute
 times       DS.B   1                 ; Second
-ctr2p5m     DS.W   1                 ; interrupt counter for 2.5 mSec. of time
-buffer      DS.B   7                 ;buffer for message from terminal
-buffCount   DC.B   $00,$00           ;counter for number of characters in buffer
 minute      DS.B   3                 ;buffer for minute
 second1     DS.B   3                 ;buffer for first seond
 second2     DS.B   3                 ;buffer for second second
@@ -65,15 +96,30 @@ digMin      DS.B   3                 ;buffer for minute display output
 digSec1     DS.B   3                 ;buffer for first seond display output
 digSec2     DS.B   3                 ;buffer for second second display output
 setBool     DS.B   2                 ;bool to check if clock has been set
-;
-;*******************************************************
-; Interrupt vector section
-            ORG    $FFF0              ; RTI interrupt vector setup for the simulator
-;            ORG    $3FF0             ; RTI interrupt vector setup for the CSM-12C128 board
-            DC.W   rtiisr
+
+ctr2p5m     DS.W   1                 ; interrupt counter for 2.5 mSec. of time
+ctr125u     DS.W   1                 ; 16bit interrupt counter for 125 uSec. of time
+
+BUF         DS.B   6                 ; character buffer for a 16bit number in decimal ASCII
+CTR         DS.B   1                 ; character buffer fill count
+
+wave        DS.B   1                 ;indicator for wave type
+
+buffer      DS.B   7                 ;buffer for message from terminal
+buffCount   DC.B   $00,$00           ;counter for number of characters in buffer
 ;
 ;***********************************************************************
 ; Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
+; interrupt vector section
+            ORG    $FFF0             ; RTI interrupt vector setup for the simulator
+;            ORG    $3FF0            ; RTI interrupt vector setup for the CSM-12C128 board
+            DC.W   rtiisr
+            
+            ORG    $FFE4             ; Timer channel 5 interrupt vector setup, on simulator
+            DC.W    oc5isr
+;*******************************************************
+; Code section: address used [ $3100 to $3FFF ] RAM memory
 ;
             ORG    $3100
 Entry
@@ -87,12 +133,21 @@ Entry
 
             ldaa   #$0C         ; Enable SCI port Tx and Rx units
             staa   SCICR2       ; disable SCI interrupts
+            
+; ATD initialization
+            LDAA  #%11000000        ; Turn ON ADC, clear flags, Disable ATD interrupt
+            STAA  ATDCTL2
+            LDAA  #%00001000        ; Single conversion per sequence, no FIFO
+            STAA  ATDCTL3
+            LDAA  #%10000111        ; 8bit, ADCLK=24MHz/16=1.5MHz, sampling time=2*(1/ADCLK)
+            STAA  ATDCTL4           ; for SIMULATION
+            
 
-            ldd    #$0001       ; Set SCI Baud Register = $0001 => 1.5M baud at 24MHz (for simulation)
-;            ldd    #$0002       ; Set SCI Baud Register = $0002 => 750K baud at 24MHz
-;            ldd    #$000D       ; Set SCI Baud Register = $000D => 115200 baud at 24MHz
-;            ldd    #$009C       ; Set SCI Baud Register = $009C => 9600 baud at 24MHz
-            std    SCIBDH       ; SCI port baud rate change
+            ldd    #$0001           ; Set SCI Baud Register = $0001 => 1.5M baud at 24MHz (for simulation)
+;            ldd    #$0002          ; Set SCI Baud Register = $0002 => 750K baud at 24MHz
+;            ldd    #$000D          ; Set SCI Baud Register = $000D => 115200 baud at 24MHz
+;            ldd    #$009C          ; Set SCI Baud Register = $009C => 9600 baud at 24MHz
+            std    SCIBDH           ; SCI port baud rate change
             
             bset   RTICTL,%00011001 ; set RTI: dev=10*(2**10)=2.555msec for C128 board
                                     ;      4MHz quartz oscillator clock
@@ -103,13 +158,17 @@ Entry
             stx    ctr2p5m          ; initialize interrupt counter with 0.
             cli                     ; enable interrupt, global
             
+            ldx    #0
+            stx    ctr125u          ; initialize interrupt counter with 0.
+            cli                     ; enable interrupt, global
+            
             jsr    printMenu
             ldy   #buffer           ;load address of instruction buffer
 
 mainLoop    ldaa   setBool
             cmpa   #1
             bne    notSet           ;if clock hasn't been set skip addSecond
-            jsr    addSecond        ; if 0.5 second is up, toggle the LED 
+            jsr    addSecond        ; if 1 second is up, increse the clock 
 
 notSet      jsr    getchar          ; type writer - check the key board
             tsta                    ;  if nothing typed, keep checking
@@ -135,19 +194,59 @@ enter       jsr   nextline
             beq   typeWriterJ
             cmpa  #$73               ;see if first character is 's'
             beq   setTimeJ
+            cmpa  #$67               ;see if first character is 'g'
+            beq   Gs
+            cmpa  #$61               ;see if first character is 'a'
+            beq   As  
             bra   formatJ            ;print error mesage if no first characters match
+            
+Gs          ldaa  1,Y+
+            ldx   #wave
+            cmpa  #$77               ;see if second character is 'w'
+            bne   cont1
+            ldab  #0       
+            stab  X                  ;wave = 0
+            bra   begin2048J
+cont1       cmpa  #$74               ;see if second character is 't'
+            bne   cont2
+            ldab  #1       
+            stab  X                  ;wave = 1
+            bra   begin2048J         
+cont2       cmpa  #$71               ;see if second character is 'q'
+            bne   cont3
+            ldab  #2       
+            stab  X                  ;wave = 2
+            bra   begin2048J         
+cont3       bra   formatJ            ;print error mesage if no first characters match 
 
+
+As          ldaa  1,Y+
+            ldx   #wave
+            cmpa  #$64               ;see if second character is 'd'
+            bne   formatJ
+            ldaa  1,Y+
+            cmpa  #$63               ;see if second character is 'c'
+            bne   formatJ
+            ldab  #3       
+            stab  X                  ;wave = 3
+            bra   begin2048J         
+
+                                     
 setTimeJ    jmp   setTime
 typeWriterJ ldaa  1,Y+
-            cmpa  NULL
+            cmpa  #0
             bne   formatJ
             jmp   typeWriter
+begin2048J  ldaa  1,Y+
+            cmpa  #0
+            bne   formatJ
+            jmp   begin2048
 formatJ     jmp   format
 
             
 intrEnd     ldaa  #$0A
             jsr   putchar
-            ldaa  #9                 ;clear 9 bytes of buffers
+            ldaa  #10                 ;clear 9 bytes of buffers
             ldx   #buffer
 clearLoop   clr   X
             inx         
@@ -160,6 +259,181 @@ clearEnd    ldy   #buffer            ;reset address of instruction buffer
 ;******************************************************************************************************
 ;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
 ;
+;***********Timer OC5 interrupt service routine***************
+oc5isr
+            ldd   #3000              ; 125usec with (24MHz/1 clock)
+            addd  TC5H               ;    for next interrupt
+            std   TC5H               ; 
+            bset  TFLG1,%00100000    ; clear timer CH5 interrupt flag, not needed if fast clear enabled
+           
+            
+            ldaa  wave
+saw         cmpa  #0                 ;check if wave is sawtooth
+            bne   tri
+            ldd   ctr125u
+            clra                     ;print ctr125u, only the last byte 
+            bra   done
+            
+tri         cmpa  #1                 ;check if wave is triangle
+            bne   squ 
+            ldd   ctr125u
+            ldx   #2
+            tab  
+            idiv
+            tba
+            bne   down               ;check if a register is odd or even
+up          ldd   ctr125u            ;if even go up the triangle wave
+            clra                     ;print ctr125u, only the last byte 
+            bra   done
+down        ldd   ctr125u
+            clra                     
+            ldaa  #255
+            sba
+            tab
+            clra
+            bra   done    
+            
+squ         cmpa  #2                 ;check if wave is triangle
+            bne   adc 
+            ldd   ctr125u
+            ldx   #2
+            tab  
+            idiv
+            tba
+            bne   one                ;check if a register is odd or even
+zero        ldd   #0                 ;if even print 0
+            bra   done
+one         clra                     
+            ldab  #255
+            bra   done  
+            
+adc                                ; Start ATD conversion
+            LDAA  #%10000111       ; right justified, unsigned, single conversion,
+            STAA  ATDCTL5          ; single channel, CHANNEL 7, start the conversion
+
+adcwait     ldaa  ATDSTAT0         ; Wait until ATD conversion finish
+            anda  #%10000000       ; check SCF bit, wait for ATD conversion to finish
+            beq   adcwait
+
+            ldaa  ATDDR0L          ; for SIMULATOR, pick up the lower 8bit result
+            bra   done            
+              
+done        ldx   ctr125u
+            inx                      ; update OC5 (125usec) interrupt counter
+            stx   ctr125u
+            jsr   pnum10             ;to make the file RxData3.txt with exactly 2048 data 
+
+oc5done     RTI
+;*************Timer OC5 interrupt service routine end*********
+
+;**************************2048 loop**************************
+begin2048   ldx     #0               ; Enter/Return key hit
+            stx     ctr125u
+            jsr     StartTimer5oc
+
+            CLI                      ; Interrupt enable, for Timer OC5 interrupt start
+
+
+loop2048
+            ldaa    setBool
+            cmpa    #1
+            bne     notSet1          ;if clock hasn't been set skip addSecond
+            jsr     addSecond        ; if 1 second is up, increse the clock 
+            
+notSet1     ldd     ctr125u
+            cpd     #DATAmax         ; 2048 bytes will be sent, the receiver at Windows PC 
+            bhs     loopTxON         ;   will only take 2048 bytes.
+            bra     loop2048         ; set Terminal Cache Size to 10000 lines, update from 1000 lines
+
+loopTxON
+            LDAA    #%00000000
+            STAA    TIE               ; disable OC5 interrupt
+
+            jsr     nextline
+            jsr     nextline
+
+            ldx     #msg7            ; print '> Done!  Close Output file.'
+            jsr     printmsg
+            jsr     nextline
+
+            ldx     #msg8            ; print '> Ready for next data transmission'
+            jsr     printmsg
+            jsr     nextline
+
+            jmp     intrEnd
+
+;************************2048 loop end************************
+
+;***************StartTimer5oc************************
+;* Program: Start the timer interrupt, timer channel 6 output compare
+;* Input:   Constants - channel 5 output compare, 125usec at 24MHz
+;* Output:  None, only the timer interrupt
+;* Registers modified: D used and CCR modified
+;* Algorithm:
+;             initialize TIOS, TIE, TSCR1, TSCR2, TC2H, and TFLG1
+;****************************************************
+StartTimer5oc
+            PSHD
+            LDAA   #%00100000
+            STAA   TIOS              ; set CH5 Output Compare
+            STAA   TIE               ; set CH5 interrupt Enable
+            LDAA   #%10000000        ; enable timer, Fast Flag Clear not set
+            STAA   TSCR1
+            LDAA   #%00000000        ; TOI Off, TCRE Off, TCLK = BCLK/1
+            STAA   TSCR2             ;   not needed if started from reset
+
+            LDD    #3000            ; 125usec with (24MHz/1 clock)
+            ADDD   TCNTH            ;    for first interrupt
+            STD    TC5H             ; 
+
+            BSET   TFLG1,%00100000   ; initial Timer CH5 interrupt flag Clear, not needed if fast clear set
+            LDAA   #%00100000
+            STAA   TIE               ; set CH5 interrupt Enable
+            PULD
+            RTS
+;*****************StartTimer5oc end******************
+
+;*******************pnum10***************************
+;* Program: print a word (16bit) in decimal to SCI port
+;* Input:   Register D contains a 16 bit number to print in decimal number
+;* Output:  decimal number printed on the terminal connected to SCI port
+;* 
+;* Registers modified: CCR
+;* Algorithm:
+;     Keep divide number by 10 and keep the remainders
+;     Then send it out to SCI port
+;  Need memory location for counter CTR and buffer BUF(6 byte max)
+;****************************************************
+pnum10          pshd                   ;Save registers
+                pshx
+                pshy
+                clr     CTR            ; clear character count of an 8 bit number
+
+                ldy     #BUF
+pnum10p1        ldx     #10
+                idiv
+                beq     pnum10p2
+                stab    1,y+
+                inc     CTR
+                tfr     x,d
+                bra     pnum10p1
+
+pnum10p2        stab    1,y+
+                inc     CTR                        
+;--------------------------------------
+
+pnum10p3        ldaa    #$30                
+                adda    1,-y
+                jsr     putchar
+                dec     CTR
+                bne     pnum10p3
+                jsr     nextline
+                puly
+                pulx
+                puld
+                rts
+;******************pnum10 end**********************
+
 ;***********RTI interrupt service routine***************
 rtiisr      bset   CRGFLG,%10000000 ; clear RTI Interrupt Flag - for the next one
             ldx    ctr2p5m          ; every time the RTI occur, increase
@@ -290,6 +564,10 @@ printMenu   ldx   #msg3              ; print the third message
             ldx   #msg5              ; print the fifth message
             jsr   printmsg
             jsr   nextline
+            
+            ldx   #msg6              ; print the sixth message
+            jsr   printmsg
+            jsr   nextline
             rts
 ;***********print menu end*********************
 
@@ -303,6 +581,7 @@ timeFormat  ldx   #timeEr            ; print the error message
             jsr   printmsg
             jsr   nextline
             jmp   intrEnd
+
 ;***********error message end******************
 
 ;***********typer writer loop******************
@@ -384,6 +663,7 @@ putchar     brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
 ;      RDRF = 1 : full - Receive Data Register Full, 1 byte received
 ;      RDRF = 0 : not full, 0 byte received
 ;**********************************************
+
 getchar     brclr SCISR1,#%00100000,getchar7
             ldaa  SCIDRL
             rts
@@ -403,9 +683,12 @@ nextline    psha
 
 msg1        DC.B        'Hello', $00
 msg2        DC.B        'You may type below', $00
-msg3        DC.B        'Welcome to the 10 minute dgital clock', $00
-msg4        DC.B        'Please enter "s " and a time between  0:00 and 9:59 to set the clock', $00
-msg5        DC.B        'or "q" to quit the clock', $00
+msg3        DC.B        'Welcome to the 10 minute dgital clock and Analog Coverter', $00
+msg4        DC.B        'Please enter "s " and a time between  0:00 and 9:59 to set the clock,', $00
+msg5        DC.B        '"gw" for sawtooth, "gt" for triangle, "gq" for square functions,', $00
+msg6        DC.B        '"adc" for analog signal acqusition, or "q" to quit the clock', $00
+msg7        DC.B        'Done!  Close Output file.', $00
+msg8        DC.B        'Ready for next data transmission.', $00
 formatEr    DC.B        'Invalid command. ("s" to set time and "q" to quit)', $00
 timeEr      DC.B        'Invalid time format. Correct example => 0:00 to 9:59', $00
 

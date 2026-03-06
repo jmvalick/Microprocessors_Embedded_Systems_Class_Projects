@@ -1,6 +1,6 @@
 ;******************************************************************************
 ;
-; Title:          Homework 1: Load memory with loop
+; Title:          Project 1: Load memory with loop
 ;
 ; Objective:      Learn how to assemble a simple source program and learn
 ;                 how to simulate the program. 

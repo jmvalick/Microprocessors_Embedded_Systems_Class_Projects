@@ -1,6 +1,6 @@
 ;***********************************************************************
 ;
-; Title:          Homework 6: Interactive Serial Memory Read and Write
+; Title:          Project 5: SCI Serial Memory Read and Write
 ;
 ; Objective:      To learn how to use arithmetic instructions and write
 ;                 basic system I/O subroutines. Learn user interface 
@@ -23,7 +23,7 @@
 ; Observation:    Shows content of given adress and writes content to given address.
 ;                 Data will be shown in hexadecimal and decimal.
 ;                 Data can be written with a given hexadecimal or decimal value.
-;                 Invalid command handling.
+;                 Invalid command error handling.
 ;
 ;***********************************************************************
 ;Parameter Declearation Section

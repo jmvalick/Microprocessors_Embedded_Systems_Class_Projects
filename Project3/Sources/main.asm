@@ -1,6 +1,6 @@
 ;******************************************************************************************************
 ;
-; Title:          Homework 3: LED Light Blinking with PWM
+; Title:          Project 3: LED Light Blinking with PWM
 ;
 ; Objective:      Dimming the LED lights using PWM (Pulse Width Modulation) technique. 
 ;

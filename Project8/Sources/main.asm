@@ -1,31 +1,46 @@
-;*******************************************************
-;* CMPEN 472, HW8 Multi-Real Time Interrupt, MC9S12C128 Program
-;* CodeWarrior Simulator/Debug edition, not for CSM-12C128 board
-;*
-;* Programmer: Jamin Valick
-;*
-;*Command gw : generate sawtooth wave, printing 0 through 255, repeated for total 2048 points
-;*Command gt : generate triangle wave, printing 0 through 255, then 255 down to 0, repeated for total 2048 points
-;*Command gq : generate square wave, printing 0 for 255 times, then print 255 for 255 times, then repeated for total 2048 points
-;*Print one signal sample (an 8-bit unsigned integer) every 125usec (8000Hz sampling rate)
-;*Capture the terminal output into a file, so the wave can be plotted with Excel or MATLAB. (Click for terminal setup. )
-;*Show '> ' prompt and echo print user keystrokes until the Enter/Return key
-;*In case of an invalid input format, print error message on the next line: 'Invalid input format'
-;*10 minute digital clock (same as Homework 8)
-;*Update the time display every one second
-;*Time display: three 7-segment displays on PORTA and PORTB
-;*Use Real Time Interrupt (RTI) feature to keep the time
-;*Waveform display: on the terminal screen (ASCII text print, integer number)
-;*
-;* 
-;*******************************************************
-;*******************************************************
-
-; export symbols - program starting point
+;***********************************************************************
+;
+; Title:          Project 8: RTI Based Multitasking Signal Wave Generation and Digital Clock
+;
+; Objective:      To learn interrupt based multi-tasking programming, with multiple interrupt type handling.
+;
+; Date:	          November 14, 2022
+;
+; Programmer:     Jamin Valick
+;
+; Program:        Simple SCI Serial Port I/O 
+;                 Digital clock. Time tracked with interrupt that occurs every 2.55 ms.
+;                 Wave generator that prints a value every 125 usec (8KHz sampling rate).
+;
+; Memory use:     RAM Locations from $3000 for data, 
+;                 RAM Locations from $3100 for program
+;
+; Input:          Serial port input commands.
+;                 Clock command format:
+;                   "s" for 'set time' command and "q" for 'quit' command, only two commands 
+;                   s <number 0 to 9>:<number 0 to 59>
+;                 Wave generator commands:
+;                   gw: generate sawtooth wave
+;                   gt: generate triangle wave
+;                   gq: generate square wave
+;
+; Output:         Hyper terminal
+;                 7-segment display. Minutes PORTA seconds PORTB.
+;                 
+; Observation:    Show 10 minute clock based on time set.
+;                 Sawtooth wave: printing 0 through 255, repeated for total 2048 points
+;                 Triangle wave: printing 0 through 255, then 255 down to 0, repeated for total 2048 points 
+;                 Square wave: printing 0 for 255 times, then print 255 for 255 times, then repeated for total 2048 points 
+;                 Format error handling.
+;
+;***********************************************************************
+; Parameter Declearation Section
+;
+; Export Symbols
             XDEF        Entry        ; export 'Entry' symbol
             ABSENTRY    Entry        ; for assembly entry point
 
-; include derivative specific macros
+; Symbols and Macros
 PORTA       EQU         $0000
 PORTB       EQU         $0001
 DDRA        EQU         $0002
@@ -53,9 +68,10 @@ CR          equ         $0d          ; carriage return, ASCII 'Return' key
 LF          equ         $0a          ; line feed, ASCII 'next line' character
 
 DATAmax     equ         2048         ; Data count maximum, 2048 constant
-
-;*******************************************************
-; variable/data section
+;
+;***********************************************************************
+; Data Section: address used [ $3000 to $30FF ] RAM memory
+;
             ORG    $3000             ; RAMStart defined as $3000
                                      ; in MC9S12C128 chip
 
@@ -81,7 +97,10 @@ wave        DS.B   1                 ;indicator for wave type
 buffer      DS.B   7                 ;buffer for message from terminal
 buffCount   DC.B   $00,$00           ;counter for number of characters in buffer
 
-;*******************************************************
+;
+;***********************************************************************
+; Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
 ; interrupt vector section
             ORG    $FFF0             ; RTI interrupt vector setup for the simulator
 ;            ORG    $3FF0            ; RTI interrupt vector setup for the CSM-12C128 board
@@ -90,8 +109,8 @@ buffCount   DC.B   $00,$00           ;counter for number of characters in buffer
             ORG    $FFE4             ; Timer channel 5 interrupt vector setup, on simulator
             DC.W    oc5isr
 ;*******************************************************
-; code section
-
+; Code section: address used [ $3100 to $3FFF ] RAM memory
+;
             ORG    $3100
 Entry
             LDS    #Entry         ; initialize the stack pointer
@@ -203,8 +222,10 @@ clearLoop   clr   X
             bra   clearLoop
 clearEnd    ldy   #buffer            ;reset address of instruction buffer
             jsr   mainLoop  
-            
-;subroutine section below
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;
 ;***********Timer OC5 interrupt service routine***************
 oc5isr
             ldd   #3000              ; 125usec with (24MHz/1 clock)
@@ -257,7 +278,7 @@ done        ldx   ctr125u
             jsr   pnum10             ;to make the file RxData3.txt with exactly 2048 data 
 
 oc5done     RTI
-;***********end of Timer OC5 interrupt service routine********
+;*************Timer OC5 interrupt service routine end*********
 
 ;**************************2048 loop**************************
 begin2048   ldx     #0               ; Enter/Return key hit
@@ -324,7 +345,7 @@ StartTimer5oc
             STAA   TIE               ; set CH5 interrupt Enable
             PULD
             RTS
-;***************end of StartTimer5oc*****************
+;*****************StartTimer5oc end******************
 
 ;*******************pnum10***************************
 ;* Program: print a word (16bit) in decimal to SCI port
@@ -365,7 +386,7 @@ pnum10p3        ldaa    #$30
                 pulx
                 puld
                 rts
-;*****************end of pnum10********************
+;******************pnum10 end**********************
 
 ;***********RTI interrupt service routine***************
 rtiisr      bset   CRGFLG,%10000000 ; clear RTI Interrupt Flag - for the next one
@@ -373,7 +394,7 @@ rtiisr      bset   CRGFLG,%10000000 ; clear RTI Interrupt Flag - for the next on
             inx                     ;    the 16bit interrupt count
             stx    ctr2p5m
 rtidone     RTI
-;***********end of RTI interrupt service routine********
+;***********RTI interrupt service routine end***********
 
 ;*******************Set Time******************
 setTime     ldx    #setBool         ;set bool is now true
@@ -498,7 +519,7 @@ printMenu   ldx   #msg3              ; print the third message
             jsr   printmsg
             jsr   nextline
             rts
-;***********print menu ends********************
+;***********print menu end*********************
 
 ;***********error message**********************
 format      ldx   #formatEr          ; print the error message
@@ -531,7 +552,7 @@ writerLoop  jsr   getchar            ; type writer - check the key board
             ldaa  #LF                ; cursor to next line
             jsr   putchar
             bra   writerLoop  
-;***********typer writer loop ends*************   
+;***********typer writer loop end**************   
 
 ;***********printmsg***************************
 ;* Program: Output character string to SCI port, print message
@@ -560,7 +581,7 @@ printmsgloop    ldaa    1,X+           ;pick up an ASCII character from string
 printmsgdone    pulx 
                 pula
                 rts
-;***********end of printmsg********************
+;**************printmsg end********************
 
 ;***************putchar************************
 ;* Program: Send one character to SCI port, terminal
@@ -576,7 +597,7 @@ printmsgdone    pulx
 putchar     brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
             staa  SCIDRL                      ; send a character
             rts
-;***************end of putchar*****************
+;*****************putchar end******************
 
 ;****************getchar***********************
 ;* Program: Input one character from SCI port (terminal/keyboard)
@@ -598,7 +619,7 @@ getchar     brclr SCISR1,#%00100000,getchar7
             rts
 getchar7    clra
             rts
-;****************end of getchar**************** 
+;******************getchar end***************** 
 
 ;****************nextline**********************
 nextline    psha
@@ -608,7 +629,7 @@ nextline    psha
             jsr   putchar
             pula
             rts
-;****************end of nextline***************
+;*****************nextline end*****************
 
 msg1        DC.B        'Hello', $00
 msg2        DC.B        'You may type below', $00
@@ -620,7 +641,6 @@ msg7        DC.B        'Done!  Close Output file.', $00
 msg8        DC.B        'Ready for next data transmission.', $00
 formatEr    DC.B        'Invalid command. ("s" to set time and "q" to quit)', $00
 timeEr      DC.B        'Invalid time format. Correct example => 0:00 to 9:59', $00
-
 
             END               ; this is end of assembly source file
                               ; lines below are ignored - not assembled/compiled

@@ -1,6 +1,6 @@
 ;******************************************************************************************************
 ;
-; Title:          Homework 2: GPIO LED Control with Switch-Dependent Blink Patterns
+; Title:          Project 2: GPIO LED Control with Switch-Dependent Blink Patterns
 ;
 ; Objective:      Learn simple HC12 assembly program for the parallel port I/O, 
 ;                 subroutine, looping, and timing. 

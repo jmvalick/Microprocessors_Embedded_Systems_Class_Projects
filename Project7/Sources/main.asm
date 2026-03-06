@@ -1,35 +1,42 @@
-***********************************************************************
-*
-* Title:          Homework 9
-*
-* Objective:      To combine homework 7 and 8 to make a calculator and digital clock
-*
-* Date:	          November 5, 2022
-*
-* Programmer:     Jamin Valick
-*
-* Program:        Simple SCI Serial Port I/O 
-*                 elementary calculator
-*                 digital clock
-*
-* Memory use:     RAM Locations from $3000 for data, 
-*                 RAM Locations from $3100 for program
-*
-* Output:         hyper terminal
-*                 7-segment display 
-*                 
-*
-* Observation:    show calculation based on input
-*                 show 10 minute clock based on time set
-*
-***********************************************************************
-* Parameter Declearation Section
-*
-* Export Symbols
+;***********************************************************************
+;
+; Title:          Project 7: RTI Based Multitasking Clock and SCI Calculator
+;
+; Objective:      To learn interrupt based multi-tasking programming. 
+;
+; Date:	          November 5, 2022
+;
+; Programmer:     Jamin Valick
+;
+; Program:        Simple SCI Serial Port I/O 
+;                 Elementary calculator
+;                 Digital clock. Time tracked with interrupt that occurs every 2.55 ms.
+;
+; Memory use:     RAM Locations from $3000 for data, 
+;                 RAM Locations from $3100 for program
+;
+; Input:          Serial port input commands.
+;                 Clock command format:
+;                   "s" for 'set time' command and "q" for 'quit' command, only two commands 
+;                   s <number 0 to 9>:<number 0 to 59>
+;                 Calculator command format: 
+;                   <positive decimal three digit number><operand><positive decimal three digit number>
+;
+; Output:         Hyper terminal
+;                 7-segment display. Minutes PORTA seconds PORTB.
+;                 
+; Observation:    Show calculation based on input.
+;                 Show 10 minute clock based on time set.
+;                 Format and overflow error handling.
+;
+;***********************************************************************
+; Parameter Declearation Section
+;
+; Export Symbols
             XDEF        pstart       ; export 'pstart' symbol
             ABSENTRY    pstart       ; for assembly entry point
   
-* Symbols and Macros
+; Symbols and Macros
 PORTA       EQU         $0000
 PORTB       EQU         $0001
 DDRA        EQU         $0002
@@ -54,10 +61,10 @@ Q           EQU         $51          ; ASCII 'Q
 U           EQU         $55          ; ASCII 'U
 I           EQU         $49          ; ASCII 'I
 T           EQU         $54          ; ASCII 'T'
-
-***********************************************************************
-* Data Section: address used [ $3000 to $30FF ] RAM memory
-*
+;
+;***********************************************************************
+; Data Section: address used [ $3000 to $30FF ] RAM memory
+;
             ORG         $3000                ;Reserved RAM memory starting address 
 buffCount   DC.B        $00,$00              ;counter for number of characters in buffer
 buffer      DS.B        10                   ;buffer for message from terminal
@@ -82,16 +89,10 @@ digMin      DS.B   3                 ;buffer for minute display output
 digSec1     DS.B   3                 ;buffer for first seond display output
 digSec2     DS.B   3                 ;buffer for second second display output
 setBool     DS.B   2                 ;bool to check if clock has been set
-
-
-; Each message ends with $00 (NULL ASCII character) for your program.
 ;
-; There are 256 bytes from $3000 to $3100.  If you need more bytes for
-; your messages, you can put more messages 'msg3' and 'msg4' at the end of 
-; the program - before the last "END" line.
-                                     ; Remaining data memory space for stack,
-                                     ;   up to program memory start
-
+;***********************************************************************
+; Program Section: address used [ $3100 to $3FFF ] RAM memory
+;
 ;*******************************************************
 ; interrupt vector section
             ORG    $FFF0             ; RTI interrupt vector setup for the simulator
@@ -99,7 +100,7 @@ setBool     DS.B   2                 ;bool to check if clock has been set
             DC.W   rtiisr
 
 ;*******************************************************
-;code section: address used [ $3100 to $3FFF ] RAM memory
+; Code section: address used [ $3100 to $3FFF ] RAM memory
 
             ORG        $3100         ; Program start address, in RAM
 pstart      LDS        #$3100        ; initialize the stack pointer
@@ -136,7 +137,7 @@ pstart      LDS        #$3100        ; initialize the stack pointer
 mainLoop    ldaa   setBool
             cmpa   #1
             bne    notSet           ;if clock hasn't been set skip addSecond
-            jsr    addSecond        ; if 0.5 second is up, toggle the LED 
+            jsr    addSecond        ; check if 1 second is up
             
 notSet      jsr   getchar            ; type writer - check the key board
             cmpa  #$00               ;  if nothing typed, keep checking
@@ -311,7 +312,10 @@ clearEnd    ldy   #buffer            ;reset address of instruction buffer
 subtractJ   bra   subtract
 divideJ     bra   divide
 multiplyJ   bra   multiply
-;subroutine section below
+;
+;******************************************************************************************************
+;Subroutine Section: address used [ $3100 to $3FFF ] RAM memory
+;
 ;*********************operations*************************
 add         ldd   num2
             addd  num1
@@ -361,7 +365,7 @@ rtiisr      bset   CRGFLG,%10000000 ; clear RTI Interrupt Flag - for the next on
             inx                     ;    the 16bit interrupt count
             stx    ctr2p5m
 rtidone     RTI
-;***********end of RTI interrupt service routine********
+;***********RTI interrupt service routine end***********
 
 ;*******************Set Time******************
 setTime     ldx    #setBool         ;set bool is now true
@@ -388,7 +392,7 @@ addSecond   psha
 
             ldx    ctr2p5m          ; check for 1.0 sec
 ;            cpx    #400             ; 2.5msec * 400 = 1.0 sec
-            cpx    #80              ; 2.5msec * 400 = 1.0 sec
+            cpx    #80              ; 2.5msec * 400 = 1.0 sec, for simulation
             blo    doneLED          ; NOT yet
 
             ldx    #0               ; 1.0sec is up,
@@ -596,7 +600,7 @@ writerLoop  jsr   getchar            ; type writer - check the key board
             ldaa  #LF                ; cursor to next line
             jsr   putchar
             bra   writerLoop  
-;***********typer writer loop ends*************
+;***********typer writer loop end**************   
    
 ;****************Print Menu********************    
 printMenu   ldx   #msg1              ; print the 1st message
@@ -618,7 +622,7 @@ printMenu   ldx   #msg1              ; print the 1st message
             ldx   #msg6              ; print the 6th message
             jsr   printmsg
             jsr   nextline
-;****************Print Menu ends*****************    
+;****************Print Menu end******************    
             
 ;****************nextline**********************
 nextline    psha
@@ -628,7 +632,7 @@ nextline    psha
             jsr   putchar
             pula
             rts
-;****************end of nextline***************        
+;*****************nextline end*****************
 
 ;***********printmsg***************************
 ;* Program: Output character string to SCI port, print message
@@ -658,7 +662,7 @@ printmsgloop   ldaa    1,X+           ;pick up an ASCII character from string
 printmsgdone   pulx 
                pula
                rts
-;***********end of printmsg********************
+;**************printmsg end********************
 
 ;***************putchar************************
 ;* Program: Send one character to SCI port, terminal
@@ -674,7 +678,7 @@ printmsgdone   pulx
 putchar        brclr SCISR1,#%10000000,putchar   ; wait for transmit buffer empty
                staa  SCIDRL                      ; send a character
                rts
-;***************end of putchar*****************
+;*****************putchar end******************
 
 ;****************getchar***********************
 ;* Program: Input one character from SCI port (terminal/keyboard)
@@ -695,15 +699,13 @@ getchar        brclr SCISR1,#%00100000,getchar7
                rts
 getchar7       clra
                rts
-;****************end of getchar**************** 
-
+;******************getchar end***************** 
 
 ;OPTIONAL
 ;more variable/data section below
 ; this is after the program code section
 ; of the RAM.  RAM ends at $3FFF
 ; in MC9S12C128 chip
-
 
 msg1        DC.B        'Hello', $00
 msg2        DC.B        'You may type below', $00
@@ -714,7 +716,6 @@ msg6        DC.B        'Or "q" to quit the clock', $00
 formatEr    DC.B        'Invalid input format', $00
 overFlowEr  DC.B        'Overflow error', $00
 timeEr      DC.B        'Invalid time format. Correct example => 0:00 to 9:59', $00
-
 
             END               ; this is end of assembly source file
                               ; lines below are ignored - not assembled/compiled

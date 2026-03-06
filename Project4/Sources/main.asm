@@ -1,6 +1,6 @@
 ;***********************************************************************
 ;
-; Title:          Homework 5: Interactive Serial LED Controller with PWM Brightness
+; Title:          Project 4: Serical Communications Interface LED Controller with PWM Brightness
 ;
 ; Objective:      To learn how to use serial port for cummunications, 
 ;                 how to write subroutines, how to construct LOOPs, 
@@ -35,7 +35,7 @@
 ;
 ; Observation:    Control LEDs by following the printed intructions
 ;                 and typing commands on the serial port.
-;                 Invalid command handling.
+;                 Invalid command error handling.
 ;
 ;***********************************************************************
 ;Parameter Declearation Section
