@@ -3,9 +3,7 @@
 ## Summary:
 A set of microprocessors embedded system class projects. Each project has well documented
 code with summaries at the top, divided sections of code, and comments explaining most lines.
-Code is written for the HCS12 Microcontroller which is simulated using the Freescale CodeWarrior application. 
-
-
+Code is written in a CISC based assembly for the HCS12 Microcontroller which is simulated using the Freescale CodeWarrior application. 
 
 ## Contents:
 - [Project 1: Load memory with loop](./Project1/Sources/main.asm)
